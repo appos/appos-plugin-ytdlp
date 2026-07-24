@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../shared/styles.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="degraded-banner"></div>
+
+  <header class="yt-library-header">
+    <div class="yt-library-header__search">
+      <label for="search-input" class="yt-sr-only">Search library</label>
+      <input id="search-input" type="search" class="yt-input" placeholder="Search by title or uploader" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="yt-library-header__controls">
+      <div class="yt-library-header__sort">
+        <label for="sort-select" class="yt-sr-only">Sort by</label>
+        <select id="sort-select" class="yt-select">
+          <option value="newest">Newest</option>
+          <option value="title">Title</option>
+          <option value="size">Size</option>
+          <option value="duration">Duration</option>
+        </select>
+      </div>
+      <div class="yt-library-header__view-toggle" role="radiogroup" aria-label="View mode">
+        <button type="button" data-view="grid" class="yt-view-btn yt-view-btn--active" role="radio" aria-checked="true" aria-label="Grid view">
+          <span aria-hidden="true">&#9638;</span>
+        </button>
+        <button type="button" data-view="list" class="yt-view-btn" role="radio" aria-checked="false" aria-label="List view">
+          <span aria-hidden="true">&#9776;</span>
+        </button>
+      </div>
+      <div class="yt-library-header__favs">
+        <label for="favs-checkbox" class="yt-checkbox-label">
+          <input type="checkbox" id="favs-checkbox">
+          Favorites only
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main id="library-container" class="yt-library-container yt-library-container--grid">
+  </main>
+
+  <div id="empty-state" class="yt-empty-state" hidden>
+    <p class="yt-empty-state__title">Your library is empty</p>
+    <p>Paste a video or audio URL into the Download panel to get started.</p>
+    <p class="yt-empty-state__hint">Try something like <code>https://www.youtube.com/watch?v=dQw4w9WgXcQ</code></p>
+    <p class="yt-empty-state__hint">Supports YouTube, Vimeo, SoundCloud, and 1000+ other sites.</p>
+  </div>
+
+  <dialog id="delete-confirm-dialog" class="yt-delete-dialog">
+    <p id="delete-confirm-msg"></p>
+    <div class="yt-delete-dialog__actions">
+      <button type="button" id="delete-confirm-cancel" class="yt-button yt-button--secondary">Cancel</button>
+      <button type="button" id="delete-confirm-ok" class="yt-button yt-button--danger">Delete from disk</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

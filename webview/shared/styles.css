@@ -1,0 +1,247 @@
+/**
+ * Shared styles for yt-dlp webview panels.
+ *
+ * Consumes host-injected CSS custom properties set on :root via
+ * <style id="twopanez-theme">. The host updates this element at runtime
+ * when the active theme changes — no page reload needed.
+ *
+ * Host-injected tokens (from PluginWebViewBridge.swift):
+ *   --twopanez-bg            Window background
+ *   --twopanez-bg-sidebar    Sidebar background
+ *   --twopanez-bg-control    Control background
+ *   --twopanez-bg-surface    Surface background
+ *   --twopanez-bg-elevated   Elevated surface
+ *   --twopanez-accent        Cyan accent (primary action)
+ *   --twopanez-accent-cortex Magenta accent
+ *   --twopanez-accent-pulse  Amber accent
+ *   --twopanez-accent-signal Green accent (success)
+ *   --twopanez-accent-warning Gold warning
+ *   --twopanez-accent-error  Red error
+ *   --twopanez-text          Primary text
+ *   --twopanez-text-secondary Secondary text
+ *   --twopanez-text-muted    Muted text
+ *   --twopanez-text-ghost    Ghost text (borders, dividers)
+ *
+ * CSP: This file is loaded via <link rel="stylesheet"> — no inline styles.
+ */
+
+/* ── Reset ─────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    font-size: 13px;
+    color: var(--twopanez-text);
+    background: var(--twopanez-bg);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Focus ring (WCAG AA — 3:1 contrast) ───────────────────── */
+
+:focus-visible {
+    outline: 2px solid var(--twopanez-accent);
+    outline-offset: 2px;
+}
+
+/* ── Button ────────────────────────────────────────────────── */
+
+.yt-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding-block: 6px;
+    padding-inline: 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--twopanez-accent);
+    color: var(--twopanez-bg);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.yt-button:hover { opacity: 0.85; }
+
+.yt-button:active { opacity: 0.7; }
+
+.yt-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.yt-button--secondary {
+    background: var(--twopanez-bg-control);
+    color: var(--twopanez-text);
+    border-color: var(--twopanez-text-ghost);
+}
+
+.yt-button--danger {
+    background: var(--twopanez-accent-error);
+    color: var(--twopanez-text);
+}
+
+/* ── Input ─────────────────────────────────────────────────── */
+
+.yt-input {
+    display: block;
+    inline-size: 100%;
+    padding-block: 6px;
+    padding-inline: 10px;
+    border: 1px solid var(--twopanez-text-ghost);
+    border-radius: 6px;
+    background: var(--twopanez-bg-control);
+    color: var(--twopanez-text);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.yt-input::placeholder {
+    color: var(--twopanez-text-muted);
+}
+
+/* ── Select ────────────────────────────────────────────────── */
+
+.yt-select {
+    display: block;
+    inline-size: 100%;
+    padding-block: 6px;
+    padding-inline: 10px;
+    border: 1px solid var(--twopanez-text-ghost);
+    border-radius: 6px;
+    background: var(--twopanez-bg-control);
+    color: var(--twopanez-text);
+    font-family: inherit;
+    font-size: 13px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* ── List ──────────────────────────────────────────────────── */
+
+.yt-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.yt-list > li {
+    padding-block: 8px;
+    padding-inline: 12px;
+    border-block-end: 1px solid var(--twopanez-text-ghost);
+    color: var(--twopanez-text);
+}
+
+.yt-list > li:last-child {
+    border-block-end: none;
+}
+
+/* ── Progress bar ──────────────────────────────────────────── */
+
+.yt-progress-bar {
+    inline-size: 100%;
+    block-size: 6px;
+    border-radius: 3px;
+    background: var(--twopanez-bg-elevated);
+    overflow: hidden;
+}
+
+.yt-progress-bar__fill {
+    block-size: 100%;
+    border-radius: 3px;
+    background: var(--twopanez-accent);
+    transition: inline-size 0.2s ease;
+}
+
+/* ── Badge ─────────────────────────────────────────────────── */
+
+.yt-badge {
+    display: inline-flex;
+    align-items: center;
+    padding-block: 2px;
+    padding-inline: 8px;
+    border-radius: 10px;
+    background: var(--twopanez-bg-elevated);
+    color: var(--twopanez-text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.yt-badge--success { background: var(--twopanez-accent-signal); color: var(--twopanez-bg); }
+.yt-badge--warning { background: var(--twopanez-accent-warning); color: var(--twopanez-bg); }
+.yt-badge--error   { background: var(--twopanez-accent-error);   color: var(--twopanez-text); }
+
+/* ── Empty state ───────────────────────────────────────────── */
+
+.yt-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-block: 48px;
+    padding-inline: 24px;
+    color: var(--twopanez-text-muted);
+    text-align: center;
+}
+
+.yt-empty-state__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--twopanez-text-secondary);
+}
+
+/* ── Degraded banner ───────────────────────────────────────── */
+
+.yt-degraded-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding-block: 10px;
+    padding-inline: 14px;
+    border-radius: 6px;
+    background: var(--twopanez-bg-elevated);
+    border-inline-start: 3px solid var(--twopanez-accent-warning);
+    color: var(--twopanez-text);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.yt-degraded-banner[hidden] { display: none; }
+
+.yt-degraded-banner__content { flex: 1; }
+
+.yt-degraded-banner__hints {
+    margin-block-start: 4px;
+}
+
+.yt-degraded-banner__actions {
+    display: flex;
+    gap: 8px;
+    margin-block-start: 8px;
+}
+
+/* ── Utility ───────────────────────────────────────────────── */
+
+.yt-mono {
+    font-family: 'SF Mono', Menlo, monospace;
+}
+
+.yt-sr-only {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

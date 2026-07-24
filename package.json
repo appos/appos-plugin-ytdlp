@@ -1,0 +1,29 @@
+{
+    "name": "appos-plugin-ytdlp",
+    "version": "1.1.0",
+    "private": true,
+    "type": "module",
+    "description": "yt-dlp Media Downloader — flagship AppOS plugin",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/appos/appos-plugin-ytdlp.git"
+    },
+    "scripts": {
+        "build": "node build.mjs",
+        "watch": "node build.mjs --watch",
+        "typecheck": "tsc --noEmit",
+        "test:smoke": "tsx scripts/smoke.mjs",
+        "test:units": "tsx src/core/error-parser.test.ts && tsx src/core/security.test.ts && tsx src/core/state.test.ts && tsx src/core/paths.test.ts && tsx src/services/shell-with-retry.test.ts && tsx src/services/metadata-service.test.ts && tsx src/services/playlist-service.test.ts"
+    },
+    "devDependencies": {
+        "@appos.space/plugin-types": "^2.4.0",
+        "esbuild": "^0.20.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.4.0"
+    },
+    "dependencies": {
+        "@appos.space/plugin-utils": "^2.4.0",
+        "@appos.space/view-builders": "^2.4.0"
+    }
+}

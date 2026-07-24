@@ -1,0 +1,201 @@
+{
+    "id": "space.appos.ytdlp",
+    "name": "yt-dlp Media Downloader",
+    "version": "1.1.0",
+    "runtime": "javascript",
+    "entrypoint": "dist/main.js",
+    "minHostVersion": "1.0.0",
+    "author": "AppOS",
+    "description": "A polished GUI for yt-dlp — paste a URL, pick a format, download. Streaming progress, playlist support, library browser, and media playback. The flagship AppOS plugin and first Plugin Store title.",
+    "license": "MIT",
+    "homepage": "https://github.com/appos/appos-plugin-ytdlp",
+    "categories": ["media", "downloader", "productivity"],
+    "keywords": ["yt-dlp", "youtube", "video", "audio", "download", "media", "cli-wrapper"],
+    "activation": { "events": ["onStartup"] },
+    "permissions": [
+        "actions.register",
+        "actions.invoke",
+        "notifications.emit",
+        "ui.webPanel",
+        "shell.execute",
+        "filesystem.read",
+        "filesystem.write",
+        "clipboard.read",
+        "clipboard.write",
+        "cache",
+        "feedback",
+        "feedback.confirm",
+        "workspaces",
+        "menubar",
+        "smartFolders",
+        "webview"
+    ],
+    "shellCommands": ["yt-dlp", "ffmpeg"],
+    "extensions": [
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "recheck-dependencies",
+                "displayName": "Re-check Dependencies",
+                "description": "Re-probe yt-dlp and ffmpeg availability and versions.",
+                "inputSchema": { "type": "object" },
+                "visibility": ["palette", "automation"],
+                "risk": "read",
+                "approval": "auto"
+            }
+        },
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "open-download-panel",
+                "displayName": "Open yt-dlp Downloader",
+                "description": "Apply the yt-dlp workspace and show the download panel.",
+                "inputSchema": { "type": "object" },
+                "visibility": ["palette"],
+                "risk": "read",
+                "approval": "auto"
+            }
+        },
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "open-library-panel",
+                "displayName": "Open yt-dlp Library",
+                "description": "Apply the yt-dlp workspace and show the library panel.",
+                "inputSchema": { "type": "object" },
+                "visibility": ["palette"],
+                "risk": "read",
+                "approval": "auto"
+            }
+        },
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "clear-completed",
+                "displayName": "Clear Completed Downloads",
+                "description": "Remove complete, failed, and cancelled entries from the download queue.",
+                "inputSchema": { "type": "object" },
+                "visibility": ["palette", "automation"],
+                "risk": "write",
+                "approval": "auto"
+            }
+        },
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "paste-and-download",
+                "displayName": "Paste & Download",
+                "description": "Read a media URL from the clipboard and download it with default settings.",
+                "inputSchema": { "type": "object" },
+                "visibility": ["palette", "api", "agent", "automation"],
+                "risk": "external",
+                "approval": "auto"
+            }
+        },
+        {
+            "extensionPoint": "actions.definition",
+            "contribution": {
+                "id": "downloadUrl",
+                "displayName": "Download Media URL",
+                "description": "Download a media URL with yt-dlp into the configured output directory. Optional format/quality override.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "url": { "type": "string" },
+                        "format": { "type": "string", "enum": ["best", "mp4", "webm", "mp3", "m4a", "bestaudio"] },
+                        "quality": { "type": "string", "enum": ["best", "2160p", "1440p", "1080p", "720p", "480p", "360p"] }
+                    },
+                    "required": ["url"],
+                    "additionalProperties": false
+                },
+                "visibility": ["api", "agent", "automation"],
+                "risk": "external",
+                "approval": "auto"
+            }
+        }
+    ],
+    "dependencies": {
+        "plugins": [
+            {
+                "id": "space.appos.core.actions",
+                "minVersion": "1.0.0"
+            },
+            {
+                "id": "space.appos.core.notifications",
+                "minVersion": "1.0.0"
+            }
+        ],
+        "system": [
+            {
+                "name": "yt-dlp",
+                "required": true,
+                "check": {
+                    "command": "yt-dlp",
+                    "args": ["--version"],
+                    "versionPattern": "(\\d{4}\\.\\d{2}\\.\\d{2})"
+                },
+                "minVersion": "2024.08.06",
+                "installHint": "brew install yt-dlp",
+                "installUrl": "https://github.com/yt-dlp/yt-dlp#installation",
+                "description": "Media downloader engine"
+            },
+            {
+                "name": "ffmpeg",
+                "required": false,
+                "check": {
+                    "command": "ffmpeg",
+                    "args": ["-version"],
+                    "versionPattern": "ffmpeg version (\\S+)"
+                },
+                "minVersion": "6.0",
+                "installHint": "brew install ffmpeg",
+                "installUrl": "https://ffmpeg.org/download.html",
+                "description": "Video/audio transcoding (enables format conversion and merging)"
+            }
+        ]
+    },
+    "menubar": {
+        "icon": "arrow.down.circle"
+    },
+    "settings": [
+        {
+            "key": "outputDir",
+            "label": "Download Directory",
+            "type": "string",
+            "default": ""
+        },
+        {
+            "key": "proxyUrl",
+            "label": "Proxy URL",
+            "type": "string",
+            "default": ""
+        },
+        {
+            "key": "filenameTemplate",
+            "label": "Filename Template",
+            "type": "string",
+            "default": "%(title)s [%(id)s].%(ext)s"
+        },
+        {
+            "key": "defaultFormat",
+            "label": "Default Format",
+            "type": "enum",
+            "default": "best",
+            "options": ["best", "mp4", "webm", "mp3", "m4a", "bestaudio"]
+        },
+        {
+            "key": "defaultQuality",
+            "label": "Default Quality",
+            "type": "enum",
+            "default": "best",
+            "options": ["best", "2160p", "1440p", "1080p", "720p", "480p", "360p"]
+        },
+        {
+            "key": "metadataDepth",
+            "label": "Metadata Display",
+            "type": "enum",
+            "default": "basic",
+            "options": ["basic", "full"]
+        }
+    ]
+}
