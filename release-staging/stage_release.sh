@@ -40,7 +40,9 @@
 #   The member set, member order, and layout are always deterministic. For
 #   BYTE-identical zips (stable sha256 across runs/machines), set
 #   SOURCE_DATE_EPOCH=<unix-seconds> — staged mtimes are normalized to it
-#   before zipping (reproducible-builds.org convention). The same zip
+#   before zipping (reproducible-builds.org convention). Staged member modes
+#   are ALWAYS normalized (755 dirs / 644 files) before zipping, so the
+#   builder's umask cannot leak into the archive bytes. The same zip
 #   implementation must be used on both sides.
 #
 # Exit codes (explicit; nothing exits via bare failure):
@@ -63,7 +65,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ---------------------------------------------------------------------------
-# Canonical AppOS Catalog Bundle Layout v1 — the 25 FILE member paths.
+# Canonical AppOS Catalog Bundle Layout v1 — the 21 FILE member paths.
 #
 # SINGLE SOURCE OF TRUTH parity: the AppOS desktop repo pins this same array
 # as `canonicalSeedFileMembers` in
@@ -98,10 +100,10 @@ CANONICAL_FILE_MEMBERS=(
     "manifest.json"
     "assets/icon.png"
     "assets/README.md"
-    "assets/screenshot-queue.png"
-    "assets/screenshot-download.png"
-    "assets/screenshot-degraded.png"
-    "assets/screenshot-library.png"
+    # NOTE: screenshot members intentionally absent — real GUI captures are a
+    # tracked maintainer task and placeholders must never be staged
+    # (see assets/README.md). Re-add members here only when real captures land,
+    # and update canonicalSeedFileMembers in the desktop repo in lockstep.
 )
 
 RUNTIME_MANIFEST_MEMBER="appos/runtime/plugin.json"
@@ -340,6 +342,20 @@ for member in "${CANONICAL_FILE_MEMBERS[@]}"; do
     cp "$src" "${STAGE_DIR}/${member}" \
         || fail 2 "unable to copy ${src} -> staged ${member}"
 done
+
+# Mode-reproducibility: `cp` creates staged files with umask-dependent
+# permission bits, and Info-ZIP records them in the central directory even
+# with -X, so identical content staged under different umasks (e.g. 022 vs
+# 077) would zip to different bytes / sha256. Normalize the staged tree
+# unconditionally: 755 dirs, 644 files. No canonical member is executable
+# (JS/JSON/HTML/CSS/PNG/MD payload — nothing is spawned as a binary), so a
+# blanket 644 is correct; if a future member ever needs +x, chmod it 755
+# explicitly BY NAME here so the result stays deterministic.
+find "$STAGE_DIR" -type d -exec chmod 755 {} + \
+    || fail 2 "unable to normalize staged directory modes"
+find "$STAGE_DIR" -type f -exec chmod 644 {} + \
+    || fail 2 "unable to normalize staged file modes"
+log "normalized staged modes (dirs 755, files 644)"
 
 # Byte-reproducibility: `cp` stamps fresh mtimes and zip records them, so two
 # stagings of identical content would otherwise differ. With SOURCE_DATE_EPOCH
