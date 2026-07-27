@@ -376,14 +376,46 @@ fi
 TMP_ZIP="${WORK_TMP}/space-appos-ytdlp-${VERSION}.zip"
 # -X strips platform extra fields (uid/gid/timestamps beyond DOS mtime); the
 # member order is the canonical array — both keep the archive deterministic.
-(cd "$STAGE_DIR" && TZ=UTC zip -q -X "$TMP_ZIP" "${CANONICAL_FILE_MEMBERS[@]}") \
+# ZIPOPT/ZIP are Info-ZIP env hooks that prepend arbitrary default options to
+# every zip invocation (e.g. ZIPOPT=-0 changes compression → different bytes);
+# unset them so the builder's environment can't silently alter the archive.
+(cd "$STAGE_DIR" && unset ZIPOPT ZIP && TZ=UTC zip -q -X "$TMP_ZIP" "${CANONICAL_FILE_MEMBERS[@]}") \
     || fail 2 "zip creation failed"
 
 # Self-check BEFORE the zip lands anywhere a publish flow could pick it up.
 check_zip "$TMP_ZIP"
 
 mkdir -p "$OUTPUT_DIR" || fail 2 "unable to create output dir ${OUTPUT_DIR}"
-mv "$TMP_ZIP" "$OUT_ZIP" || fail 2 "unable to place zip at ${OUT_ZIP}"
+# Final placement must be atomic AND no-clobber (unless --force): two runs for
+# the same new version can both pass the early [ -e ] check, and a plain mv
+# would let the later run silently replace the first artifact. link(2) fails
+# with EEXIST if a concurrent run won the race; the cross-device fallback
+# stages a private copy next to the target first so the final link is still
+# atomic on the target filesystem.
+place_zip() {
+    if [ "$FORCE" -eq 1 ]; then
+        mv -f "$TMP_ZIP" "$OUT_ZIP" || fail 2 "unable to place zip at ${OUT_ZIP}"
+        return 0
+    fi
+    if ln "$TMP_ZIP" "$OUT_ZIP" 2>/dev/null; then
+        rm -f "$TMP_ZIP"
+        return 0
+    fi
+    if [ -e "$OUT_ZIP" ]; then
+        fail 8 "refusing to overwrite ${OUT_ZIP} — a concurrent staging run placed it first (pass --force to allow)"
+    fi
+    # link failed but target absent → cross-device (EXDEV): copy to a private
+    # name on the target fs, then link atomically.
+    local incoming="${OUT_ZIP}.incoming.$$"
+    cp "$TMP_ZIP" "$incoming" || fail 2 "unable to place zip at ${OUT_ZIP}"
+    if ln "$incoming" "$OUT_ZIP" 2>/dev/null; then
+        rm -f "$incoming" "$TMP_ZIP"
+        return 0
+    fi
+    rm -f "$incoming"
+    fail 8 "refusing to overwrite ${OUT_ZIP} — a concurrent staging run placed it first (pass --force to allow)"
+}
+place_zip
 
 SHA256="$(shasum -a 256 "$OUT_ZIP" | awk '{print $1}')" \
     || fail 2 "unable to checksum ${OUT_ZIP}"
