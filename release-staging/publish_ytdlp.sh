@@ -49,7 +49,9 @@ echo "HTTP $HTTP"; [ "$HTTP" = "200" ] || { cat /tmp/prepare.json; exit 1; }
 UPLOAD_URL=$(jsonget /tmp/prepare.json presignedUploadUrl)
 TOKEN=$(jsonget /tmp/prepare.json publishToken)
 PUBLISHER_ID=$(jsonget /tmp/prepare.json publisherId)
-echo "publishToken: $TOKEN"
+# publishToken is a short-lived publish capability — never print it.
+[ -n "$TOKEN" ] || { echo "FATAL: prepare returned no publishToken"; exit 1; }
+echo "publishToken: (received — redacted)"
 echo "publisherId:  $PUBLISHER_ID"
 
 # --- 2. upload ---
@@ -102,9 +104,16 @@ HTTP=$(curl -sS -m 30 -o /tmp/claim.json -w "%{http_code}" -X POST "$BASE/v1/pub
   -H "Content-Type: application/json" \
   -d "{\"versionId\":\"$VERSION_ID\",\"signature\":\"$SIG_HEX\",\"signingPubkey\":\"$PUB_HEX\"}")
 echo "HTTP $HTTP"; cat /tmp/claim.json; echo
+# Fail closed: a claim ERROR (4xx/5xx, empty/absent status) must NOT fall
+# through to the force-publish PATCH below.
+[ "$HTTP" = "200" ] || [ "$HTTP" = "201" ] || { echo "FATAL: claim failed (HTTP $HTTP) — refusing to force-publish"; exit 1; }
 CLAIM_STATUS=$(jsonget /tmp/claim.json status)
+case "$CLAIM_STATUS" in
+  published|candidate) ;;
+  *) echo "FATAL: unexpected claim status '$CLAIM_STATUS' — refusing to force-publish"; exit 1 ;;
+esac
 
-# --- 5b. fallback force-publish if claim left it 'candidate' ---
+# --- 5b. fallback force-publish ONLY on an explicit 'candidate' claim ---
 if [ "$CLAIM_STATUS" != "published" ]; then
   echo; echo "== 5b. claim status='$CLAIM_STATUS' — force status='published' on item_versions (service role) =="
   HTTP=$(curl -sS -m 30 -o /tmp/force.json -w "%{http_code}" -X PATCH \
@@ -115,11 +124,17 @@ if [ "$CLAIM_STATUS" != "published" ]; then
   echo "HTTP $HTTP"; cat /tmp/force.json; echo
 fi
 
-# --- 6. verify (public reads, no auth) ---
+# --- 6. verify (public reads, no auth; each MUST return HTTP 200) ---
+verify_get() { # verify_get <label> <url>
+  local http
+  http=$(curl -sS -m 25 -o /tmp/verify.out -w "%{http_code}" "$2") || { echo "FATAL: $1 request failed"; exit 1; }
+  cat /tmp/verify.out; echo; echo "HTTP $http"
+  [ "$http" = "200" ] || { echo "FATAL: $1 returned HTTP $http (expected 200)"; exit 1; }
+}
 echo; echo "== 6a. GET /v1/catalog/browse =="
-curl -sS -m 20 -w "\nHTTP %{http_code}\n" "$BASE/v1/catalog/browse"
+verify_get "catalog browse" "$BASE/v1/catalog/browse"
 echo; echo "== 6b. GET /v1/catalog/items/$SLUG =="
-curl -sS -m 20 -w "\nHTTP %{http_code}\n" "$BASE/v1/catalog/items/$SLUG"
+verify_get "catalog item $SLUG" "$BASE/v1/catalog/items/$SLUG"
 echo; echo "== 6c. storefront proxy =="
-curl -sS -m 25 -w "\nHTTP %{http_code}\n" "https://app.appos.space/api/catalog/browse"
+verify_get "storefront proxy" "https://app.appos.space/api/catalog/browse"
 echo; echo "DONE. Keep $KEYS_DIR/appos-publisher-ed25519.pem safe — publishers.signing_pubkey is now CAS-bound to it."
