@@ -202,7 +202,8 @@ check_zip() {
     # DNS plugin id; `title`/`name` and the two `description`s legitimately
     # diverge per surface).
     local extract_dir
-    extract_dir="$(mktemp -d "${WORK_TMP}/check.XXXXXX")"
+    extract_dir="$(mktemp -d "${WORK_TMP}/check.XXXXXX")" \
+        || fail 2 "mktemp failed for manifest extraction"
 
     unzip -p "$zip_path" manifest.json > "${extract_dir}/manifest.json" \
         || fail 2 "unable to extract manifest.json from ${zip_path}"
@@ -309,7 +310,7 @@ if [ -e "$OUT_ZIP" ] && [ "$FORCE" -ne 1 ]; then
 fi
 
 STAGE_DIR="${WORK_TMP}/stage"
-mkdir -p "$STAGE_DIR"
+mkdir -p "$STAGE_DIR" || fail 2 "unable to create staging dir ${STAGE_DIR}"
 
 log "staging AppOS Catalog Bundle Layout v1 for space-appos-ytdlp ${VERSION}"
 for member in "${CANONICAL_FILE_MEMBERS[@]}"; do
@@ -334,8 +335,10 @@ for member in "${CANONICAL_FILE_MEMBERS[@]}"; do
         esac
         fail 2 "source file missing for bundle member ${member}: ${src}${hint}"
     fi
-    mkdir -p "${STAGE_DIR}/$(dirname "$member")"
-    cp "$src" "${STAGE_DIR}/${member}"
+    mkdir -p "${STAGE_DIR}/$(dirname "$member")" \
+        || fail 2 "unable to create staging subdir for ${member}"
+    cp "$src" "${STAGE_DIR}/${member}" \
+        || fail 2 "unable to copy ${src} -> staged ${member}"
 done
 
 # Byte-reproducibility: `cp` stamps fresh mtimes and zip records them, so two
@@ -363,10 +366,11 @@ TMP_ZIP="${WORK_TMP}/space-appos-ytdlp-${VERSION}.zip"
 # Self-check BEFORE the zip lands anywhere a publish flow could pick it up.
 check_zip "$TMP_ZIP"
 
-mkdir -p "$OUTPUT_DIR"
-mv "$TMP_ZIP" "$OUT_ZIP"
+mkdir -p "$OUTPUT_DIR" || fail 2 "unable to create output dir ${OUTPUT_DIR}"
+mv "$TMP_ZIP" "$OUT_ZIP" || fail 2 "unable to place zip at ${OUT_ZIP}"
 
-SHA256="$(shasum -a 256 "$OUT_ZIP" | awk '{print $1}')"
+SHA256="$(shasum -a 256 "$OUT_ZIP" | awk '{print $1}')" \
+    || fail 2 "unable to checksum ${OUT_ZIP}"
 log "staged: ${OUT_ZIP}"
 log "sha256: ${SHA256}"
 log "members: ${#CANONICAL_FILE_MEMBERS[@]} files (canonical layout)"
