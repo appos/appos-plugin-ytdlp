@@ -16,7 +16,7 @@
 #   or GoTrue signup with email daniel+appos-publisher@instantlyeasy.com and
 #   user_metadata {"full_name": "AppOS"} so the publisher renders as "AppOS").
 #
-# NEVER prints secret values. Requires: curl, python3, openssl (3.x), zip.
+# NEVER prints secret values. Requires: curl, python3, openssl (3.x), zip, unzip.
 set -euo pipefail
 
 SCRATCH="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +37,11 @@ SRK="$SUPABASE_SERVICE_ROLE_KEY"
 SHA256=$(shasum -a 256 "$BUNDLE_ZIP" | awk '{print $1}')
 echo "bundle: $BUNDLE_ZIP"
 echo "sha256: $SHA256"
+# Version we are publishing, straight from the bundle's catalog manifest —
+# verification below must prove THIS version landed, not merely HTTP 200.
+EXPECTED_VERSION=$(unzip -p "$BUNDLE_ZIP" manifest.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+[ -n "$EXPECTED_VERSION" ] || { echo "FATAL: could not read .version from bundle manifest.json"; exit 1; }
+echo "version: $EXPECTED_VERSION"
 
 jsonget() { python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(d.get(sys.argv[2],''))" "$1" "$2"; }
 
@@ -122,19 +127,35 @@ if [ "$CLAIM_STATUS" != "published" ]; then
     -H "Content-Type: application/json" -H "Prefer: return=representation" \
     -d '{"status": "published"}')
   echo "HTTP $HTTP"; cat /tmp/force.json; echo
+  # Fail closed: the PATCH must succeed AND the returned representation must
+  # show the TARGET versionId at status=published.
+  { [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; } || { echo "FATAL: force-publish PATCH failed (HTTP $HTTP)"; exit 1; }
+  python3 -c '
+import json, sys
+rows = json.load(open("/tmp/force.json"))
+if not isinstance(rows, list):
+    rows = [rows]
+ok = any(r.get("id") == sys.argv[1] and r.get("status") == "published" for r in rows)
+sys.exit(0 if ok else 1)' "$VERSION_ID" \
+    || { echo "FATAL: force-publish did not leave versionId=$VERSION_ID at status=published"; exit 1; }
 fi
 
-# --- 6. verify (public reads, no auth; each MUST return HTTP 200) ---
-verify_get() { # verify_get <label> <url>
+# --- 6. verify (public reads, no auth; each MUST return HTTP 200, and the
+# ---    responses must reference the version we just published) ---
+verify_get() { # verify_get <label> <url> [required-substring]
   local http
   http=$(curl -sS -m 25 -o /tmp/verify.out -w "%{http_code}" "$2") || { echo "FATAL: $1 request failed"; exit 1; }
   cat /tmp/verify.out; echo; echo "HTTP $http"
   [ "$http" = "200" ] || { echo "FATAL: $1 returned HTTP $http (expected 200)"; exit 1; }
+  if [ -n "${3:-}" ]; then
+    grep -qF "$3" /tmp/verify.out \
+      || { echo "FATAL: $1 response does not contain '$3' — published version not visible"; exit 1; }
+  fi
 }
 echo; echo "== 6a. GET /v1/catalog/browse =="
-verify_get "catalog browse" "$BASE/v1/catalog/browse"
+verify_get "catalog browse" "$BASE/v1/catalog/browse" "$SLUG"
 echo; echo "== 6b. GET /v1/catalog/items/$SLUG =="
-verify_get "catalog item $SLUG" "$BASE/v1/catalog/items/$SLUG"
+verify_get "catalog item $SLUG" "$BASE/v1/catalog/items/$SLUG" "\"$EXPECTED_VERSION\""
 echo; echo "== 6c. storefront proxy =="
-verify_get "storefront proxy" "https://app.appos.space/api/catalog/browse"
+verify_get "storefront proxy" "https://app.appos.space/api/catalog/browse" "$SLUG"
 echo; echo "DONE. Keep $KEYS_DIR/appos-publisher-ed25519.pem safe — publishers.signing_pubkey is now CAS-bound to it."

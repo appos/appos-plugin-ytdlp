@@ -36,6 +36,13 @@
 #                    Shares the exact same checker function as the staging
 #                    path, so negative tests exercise the real gate.
 #
+# Reproducibility:
+#   The member set, member order, and layout are always deterministic. For
+#   BYTE-identical zips (stable sha256 across runs/machines), set
+#   SOURCE_DATE_EPOCH=<unix-seconds> — staged mtimes are normalized to it
+#   before zipping (reproducible-builds.org convention). The same zip
+#   implementation must be used on both sides.
+#
 # Exit codes (explicit; nothing exits via bare failure):
 #   0  success / all checks passed
 #   1  usage error (unknown flag, missing argument)
@@ -331,8 +338,26 @@ for member in "${CANONICAL_FILE_MEMBERS[@]}"; do
     cp "$src" "${STAGE_DIR}/${member}"
 done
 
+# Byte-reproducibility: `cp` stamps fresh mtimes and zip records them, so two
+# stagings of identical content would otherwise differ. With SOURCE_DATE_EPOCH
+# set (the reproducible-builds convention), every staged member is normalized
+# to that timestamp before zipping — same content + same SOURCE_DATE_EPOCH +
+# same zip implementation => byte-identical zip / stable sha256. Without it,
+# reproducibility is layout-level (deterministic member set + order), not
+# byte-level.
+if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+    SDE_STAMP="$(date -u -r "$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S 2>/dev/null \
+        || date -u -d "@$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S 2>/dev/null)" \
+        || fail 1 "invalid SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH}"
+    TZ=UTC find "$STAGE_DIR" -type f -exec touch -t "$SDE_STAMP" {} + \
+        || fail 2 "unable to normalize staged mtimes"
+    log "normalized staged mtimes to SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}"
+fi
+
 TMP_ZIP="${WORK_TMP}/space-appos-ytdlp-${VERSION}.zip"
-(cd "$STAGE_DIR" && zip -q -X "$TMP_ZIP" "${CANONICAL_FILE_MEMBERS[@]}") \
+# -X strips platform extra fields (uid/gid/timestamps beyond DOS mtime); the
+# member order is the canonical array — both keep the archive deterministic.
+(cd "$STAGE_DIR" && TZ=UTC zip -q -X "$TMP_ZIP" "${CANONICAL_FILE_MEMBERS[@]}") \
     || fail 2 "zip creation failed"
 
 # Self-check BEFORE the zip lands anywhere a publish flow could pick it up.
