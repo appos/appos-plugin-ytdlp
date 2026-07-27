@@ -2,5 +2,6 @@ node_modules/
 dist/
 .env
 .DS_Store
-release-staging/
+release-staging/*.zip
+release-staging/keys/
 *.bundle

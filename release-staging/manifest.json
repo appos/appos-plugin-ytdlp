@@ -1,0 +1,36 @@
+{
+  "schema": "manifest.v1",
+  "slug": "space-appos-ytdlp",
+  "kind": "plugin",
+  "version": "1.1.0",
+  "title": "yt-dlp Media Downloader",
+  "summary": "A polished GUI for yt-dlp — paste a URL, pick a format, download. Streaming progress, playlist support, library browser, and media playback. The flagship AppOS plugin.",
+  "description": "## yt-dlp Media Downloader\n\nA polished GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp) inside AppOS — paste a URL, pick a format, download.\n\n**Features**\n\n- Streaming download progress with speed and ETA\n- Playlist support\n- Library browser with media playback\n- Format and quality presets (mp4, webm, mp3, m4a, best)\n- Clipboard paste-and-download\n- Command-palette actions and menubar quick access\n\n**System requirements**\n\n- `yt-dlp` (required) — `brew install yt-dlp`\n- `ffmpeg` (optional, enables format conversion and merging) — `brew install ffmpeg`",
+  "license": "MIT",
+  "homepageUrl": "https://github.com/acebytes/appos-plugin-ytdlp",
+  "repoUrl": "https://github.com/acebytes/appos-plugin-ytdlp",
+  "permissions": [
+    "fs.read",
+    "fs.write",
+    "net.fetch",
+    "clipboard",
+    "notifications",
+    "storage.kv",
+    "workspace.spawn"
+  ],
+  "compatibility": {
+    "hosts": ["appos-desktop"],
+    "minApposApi": "1.0.0"
+  },
+  "hostEvents": [],
+  "capabilities": {
+    "provides": [],
+    "consumes": [],
+    "publishes": [],
+    "subscribes": []
+  },
+  "entry": {
+    "runtime": "web",
+    "path": "dist/main.js"
+  }
+}
