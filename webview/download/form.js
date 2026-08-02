@@ -14,29 +14,31 @@ import { msg, validateInbound } from '../shared/messages.js';
 import { renderDegradedBanner } from '../shared/degraded-banner.js';
 import { debouncedInput, escapeHtml } from '../shared/ui-helpers.js';
 
+/** @typedef {import('../shared/messages.js').PanelOutboundMessage} PanelOutboundMessage */
+
 // ── DOM references ──────────────────────────────────────────────────
 
-const bannerEl = document.getElementById('degraded-banner');
+const bannerEl = /** @type {HTMLElement} */ (document.getElementById('degraded-banner'));
 const urlInput = /** @type {HTMLInputElement} */ (document.getElementById('url-input'));
-const probeStatus = document.getElementById('probe-status');
-const metadataDisplay = document.getElementById('metadata-display');
-const metadataThumb = document.getElementById('metadata-thumb');
-const metadataTitle = document.getElementById('metadata-title');
-const metadataUploader = document.getElementById('metadata-uploader');
-const metadataDuration = document.getElementById('metadata-duration');
+const probeStatus = /** @type {HTMLElement} */ (document.getElementById('probe-status'));
+const metadataDisplay = /** @type {HTMLElement} */ (document.getElementById('metadata-display'));
+const metadataThumb = /** @type {HTMLElement} */ (document.getElementById('metadata-thumb'));
+const metadataTitle = /** @type {HTMLElement} */ (document.getElementById('metadata-title'));
+const metadataUploader = /** @type {HTMLElement} */ (document.getElementById('metadata-uploader'));
+const metadataDuration = /** @type {HTMLElement} */ (document.getElementById('metadata-duration'));
 const formatSelect = /** @type {HTMLSelectElement} */ (document.getElementById('format-select'));
 const qualitySelect = /** @type {HTMLSelectElement} */ (document.getElementById('quality-select'));
-const playlistContainer = document.getElementById('playlist-container');
-const playlistTitleEl = document.getElementById('playlist-title');
-const playlistSelectAll = document.getElementById('playlist-select-all');
-const playlistDeselectAll = document.getElementById('playlist-deselect-all');
-const playlistCount = document.getElementById('playlist-count');
-const playlistEntries = document.getElementById('playlist-entries');
+const playlistContainer = /** @type {HTMLElement} */ (document.getElementById('playlist-container'));
+const playlistTitleEl = /** @type {HTMLElement} */ (document.getElementById('playlist-title'));
+const playlistSelectAll = /** @type {HTMLElement} */ (document.getElementById('playlist-select-all'));
+const playlistDeselectAll = /** @type {HTMLElement} */ (document.getElementById('playlist-deselect-all'));
+const playlistCount = /** @type {HTMLElement} */ (document.getElementById('playlist-count'));
+const playlistEntries = /** @type {HTMLElement} */ (document.getElementById('playlist-entries'));
 const proxyInput = /** @type {HTMLInputElement} */ (document.getElementById('proxy-input'));
 const templateInput = /** @type {HTMLInputElement} */ (document.getElementById('template-input'));
 const argsInput = /** @type {HTMLTextAreaElement} */ (document.getElementById('args-input'));
-const cliPreview = document.getElementById('cli-preview');
-const enqueueBtn = document.getElementById('enqueue-btn');
+const cliPreview = /** @type {HTMLElement} */ (document.getElementById('cli-preview'));
+const enqueueBtn = /** @type {HTMLButtonElement} */ (document.getElementById('enqueue-btn'));
 
 // ── State ───────────────────────────────────────────────────────────
 
@@ -279,7 +281,7 @@ bridge.onMessage((data) => {
 });
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'state-update' }>} data
  */
 function handleStateUpdate(data) {
     if (Array.isArray(data.queue)) {
@@ -313,7 +315,7 @@ function handleStateUpdate(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'probe-result' }>} data
  */
 function handleProbeResult(data) {
     // Strict correlation: ignore responses with missing or non-matching probeId
@@ -346,7 +348,7 @@ function handleProbeResult(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'probe-error' }>} data
  */
 function handleProbeError(data) {
     // Strict correlation: ignore responses with missing or non-matching probeId
@@ -360,7 +362,7 @@ function handleProbeError(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'playlist-data' }>} data
  */
 function handlePlaylistData(data) {
     // Strict correlation: ignore responses with missing or non-matching probeId
@@ -417,7 +419,7 @@ function handlePlaylistData(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'cli-preview' }>} data
  */
 function handleCliPreview(data) {
     // Strict correlation: ignore responses with missing, empty, or non-matching previewId
@@ -433,7 +435,7 @@ function handleCliPreview(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'dependency-banner' | 'dependency-status' }>} data
  */
 function handleDependencyUpdate(data) {
     const statuses = data.statuses;
@@ -447,7 +449,7 @@ function handleDependencyUpdate(data) {
 }
 
 /**
- * @param {object} data
+ * @param {Extract<PanelOutboundMessage, { type: 'settings-update' }>} data
  */
 function handleSettingsUpdate(data) {
     const settings = data.settings;
@@ -528,11 +530,15 @@ enqueueBtn.addEventListener('click', () => {
             return;
         }
 
+        // Snapshot the narrowed (non-null) entries so the forEach closure
+        // keeps the narrowing (TS resets `let` narrowing across closures).
+        const entriesSnapshot = currentPlaylistEntries;
         const checks = playlistEntries.querySelectorAll('input[type="checkbox"]');
+        /** @type {{ id: string, url: string, title: string }[]} */
         const selected = [];
         checks.forEach((cb, idx) => {
-            if (/** @type {HTMLInputElement} */ (cb).checked && currentPlaylistEntries[idx]) {
-                const entry = currentPlaylistEntries[idx];
+            if (/** @type {HTMLInputElement} */ (cb).checked && entriesSnapshot[idx]) {
+                const entry = entriesSnapshot[idx];
                 selected.push({ id: entry.id, url: entry.url, title: entry.title });
             }
         });

@@ -52,9 +52,9 @@ function switchTo(view) {
     // Move focus to the first focusable element in the visible panel
     const activePanel = view === 'form' ? formPanel : queuePanel;
     if (activePanel) {
-        const focusable = activePanel.querySelector(
+        const focusable = /** @type {HTMLElement | null} */ (activePanel.querySelector(
             'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        );
+        ));
         if (focusable && typeof focusable.focus === 'function') {
             focusable.focus();
         }

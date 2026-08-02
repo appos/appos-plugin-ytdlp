@@ -12,7 +12,7 @@
     "scripts": {
         "build": "node build.mjs",
         "watch": "node build.mjs --watch",
-        "typecheck": "tsc --noEmit",
+        "typecheck": "tsc --noEmit && tsc -p tsconfig.webview.json",
         "test:smoke": "tsx scripts/smoke.mjs",
         "test:units": "tsx src/core/error-parser.test.ts && tsx src/core/security.test.ts && tsx src/core/state.test.ts && tsx src/core/paths.test.ts && tsx src/services/shell-with-retry.test.ts && tsx src/services/metadata-service.test.ts && tsx src/services/playlist-service.test.ts"
     },

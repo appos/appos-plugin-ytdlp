@@ -139,7 +139,9 @@ export function renderList(container, items, { getKey, render }) {
  * listItem.remove();
  */
 export function focusNextAfterRemoval(removedEl) {
-    const next = removedEl.nextElementSibling || removedEl.previousElementSibling || removedEl.parentElement;
+    const next = /** @type {HTMLElement | null} */ (
+        removedEl.nextElementSibling || removedEl.previousElementSibling || removedEl.parentElement
+    );
     if (next && typeof next.focus === 'function') {
         next.focus();
     }

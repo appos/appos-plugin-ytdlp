@@ -17,6 +17,8 @@ import { bridge } from '../shared/bridge.js';
 import { msg } from '../shared/messages.js';
 import { renderList, escapeHtml, focusNextAfterRemoval } from '../shared/ui-helpers.js';
 
+/** @typedef {import('../shared/messages.js').PanelOutboundMessage} PanelOutboundMessage */
+
 // ── DOM references ──────────────────────────────────────────────────
 
 const queueSection = document.getElementById('view-queue');
@@ -28,6 +30,7 @@ let entries = [];
 
 // ── Status helpers ──────────────────────────────────────────────────
 
+/** @type {Record<string, string>} */
 const STATUS_ICONS = {
     queued: '\u23F3',       // hourglass
     downloading: '\u2B07\uFE0F', // down arrow
@@ -41,13 +44,19 @@ const STATUS_ICONS = {
 /**
  * Status label for display — extracting shows "Merging..." to match
  * what users see when ffmpeg is combining audio+video streams.
+ * @param {string} status
+ * @returns {string}
  */
 function statusLabel(status) {
     if (status === 'extracting') return 'Merging...';
     return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-/** Whether an entry is in an active (in-flight) state. */
+/**
+ * Whether an entry is in an active (in-flight) state.
+ * @param {string | null} status
+ * @returns {boolean}
+ */
 function isActive(status) {
     return status === 'downloading' || status === 'extracting' || status === 'queued';
 }
@@ -123,20 +132,25 @@ function createActionButton(label, action) {
  * their `data-key` attribute — existing elements get updated in place
  * (avoiding full DOM teardown), while new keys create fresh elements.
  * This keeps the DOM stable for CSS transitions and focus state.
+ * @param {Record<string, any>} entry
+ * @param {HTMLElement | null} el
+ * @returns {HTMLElement}
  */
 function renderRow(entry, el) {
     const isNew = !el;
     if (!el) {
-        el = document.createElement('div');
-        el.className = 'yt-queue__row';
-        el.setAttribute('tabindex', '0');
+        // Const alias so the listener closures see a non-null element
+        // (TS resets narrowing of the mutable `el` param inside closures).
+        const row = document.createElement('div');
+        row.className = 'yt-queue__row';
+        row.setAttribute('tabindex', '0');
 
         // Inline button click handler — delegated to the row
-        el.addEventListener('click', (e) => {
+        row.addEventListener('click', (e) => {
             const btn = /** @type {HTMLElement} */ (e.target).closest('[data-action]');
             if (!btn) return;
             const action = btn.getAttribute('data-action');
-            const id = el.getAttribute('data-id');
+            const id = row.getAttribute('data-id');
             if (!id) return;
             if (action === 'cancel') bridge.send(msg('cancel-download', { id }));
             else if (action === 'retry') bridge.send(msg('retry-download', { id }));
@@ -147,24 +161,26 @@ function renderRow(entry, el) {
         // not when focus is on an interactive descendant (button). This prevents
         // double-firing when Enter is pressed on the Retry button (native click
         // + row keydown). Also ignore held-key repeats.
-        el.addEventListener('keydown', (e) => {
+        row.addEventListener('keydown', (e) => {
             if (e.repeat) return;
-            if (e.target !== el) return; // ignore events bubbling from buttons
-            const id = el.getAttribute('data-id');
+            if (e.target !== row) return; // ignore events bubbling from buttons
+            const id = row.getAttribute('data-id');
             if (!id) return;
             if (e.key === 'Delete') {
-                const status = el.getAttribute('data-status');
+                const status = row.getAttribute('data-status');
                 if (isActive(status)) {
                     bridge.send(msg('cancel-download', { id }));
-                    focusNextAfterRemoval(el);
+                    focusNextAfterRemoval(row);
                 }
             } else if (e.key === 'Enter') {
-                const status = el.getAttribute('data-status');
+                const status = row.getAttribute('data-status');
                 if (status === 'failed' || status === 'cancelled') {
                     bridge.send(msg('retry-download', { id }));
                 }
             }
         });
+
+        el = row;
     }
 
     el.setAttribute('data-key', entry.id);
@@ -250,7 +266,7 @@ function renderRow(entry, el) {
     const titleEl = el.querySelector('.yt-queue__title');
     if (titleEl) titleEl.textContent = entry.title || entry.url || 'Unknown';
 
-    const progressEl = el.querySelector('.yt-queue__progress');
+    const progressEl = /** @type {HTMLProgressElement | null} */ (el.querySelector('.yt-queue__progress'));
     if (progressEl) progressEl.value = percent;
 
     const percentEl = el.querySelector('.yt-queue__percent');
@@ -402,7 +418,7 @@ function renderQueue() {
     }
 
     // Render ungrouped entries in a dedicated container
-    let ungroupedEl = listEl.querySelector('.yt-queue__ungrouped');
+    let ungroupedEl = /** @type {HTMLElement | null} */ (listEl.querySelector('.yt-queue__ungrouped'));
     if (ungrouped.length > 0) {
         if (!ungroupedEl) {
             ungroupedEl = document.createElement('div');
@@ -426,6 +442,7 @@ function renderQueue() {
  * Handle `download-progress` by updating just the relevant row's
  * progress bar, percent text, speed, ETA, and attempt counter.
  * Avoids full renderQueue() to keep 10 Hz ticks fast.
+ * @param {Extract<PanelOutboundMessage, { type: 'download-progress' }>} data
  */
 function handleProgress(data) {
     if (!queueSection) return;
@@ -434,7 +451,7 @@ function handleProgress(data) {
 
     const percent = Math.round(data.percent || 0);
 
-    const progress = row.querySelector('.yt-queue__progress');
+    const progress = /** @type {HTMLProgressElement | null} */ (row.querySelector('.yt-queue__progress'));
     if (progress) progress.value = percent;
 
     const percentEl = row.querySelector('.yt-queue__percent');
@@ -469,6 +486,7 @@ function handleProgress(data) {
  * Handle `download-status` by updating the row's icon, status label,
  * and button visibility. Re-renders the affected row to toggle
  * Cancel/Retry/Reveal buttons correctly.
+ * @param {Extract<PanelOutboundMessage, { type: 'download-status' }>} data
  */
 function handleStatus(data) {
     const entry = entries.find((e) => e.id === data.id);
@@ -480,7 +498,7 @@ function handleStatus(data) {
     }
 
     if (!queueSection) return;
-    const row = queueSection.querySelector(`[data-id="${CSS.escape(data.id)}"]`);
+    const row = /** @type {HTMLElement | null} */ (queueSection.querySelector(`[data-id="${CSS.escape(data.id)}"]`));
     if (row && entry) {
         renderRow(entry, row);
     }
