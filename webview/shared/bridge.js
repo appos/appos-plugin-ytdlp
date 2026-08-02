@@ -26,9 +26,12 @@
 
 const PROTOCOL_VERSION = 1;
 
+/** @typedef {import('../../src/types/webview-messages').PanelOutboundMessage} PanelOutboundMessage */
+/** @typedef {{ stream: string, data: string, bytesTotal: number }} ShellChunk */
+
 /**
  * @param {unknown} data
- * @returns {boolean}
+ * @returns {data is ShellChunk}
  */
 function isShellChunk(data) {
     return (
@@ -40,10 +43,26 @@ function isShellChunk(data) {
     );
 }
 
-/** @type {Array<(chunk: { stream: string, data: string, bytesTotal: number }) => void>} */
+/**
+ * Envelope-only guard (v + string type) — payload shapes are validated by
+ * each panel's handler, mirroring `validateInbound` in messages.js.
+ * @param {unknown} data
+ * @returns {data is PanelOutboundMessage}
+ */
+function isProtocolMessage(data) {
+    const m = /** @type {{ v?: unknown, type?: unknown } | null} */ (data);
+    return (
+        typeof m === 'object' &&
+        m !== null &&
+        m.v === PROTOCOL_VERSION &&
+        typeof m.type === 'string'
+    );
+}
+
+/** @type {Array<(chunk: ShellChunk) => void>} */
 const _shellListeners = [];
 
-/** @type {Array<(msg: object) => void>} */
+/** @type {Array<(msg: PanelOutboundMessage) => void>} */
 const _messageListeners = [];
 
 // Wire up once — split _emit traffic between shell chunks and protocol messages.
@@ -57,12 +76,7 @@ if (window.twopanez) {
         }
 
         // Version + type guard: drop malformed messages
-        if (
-            typeof data !== 'object' ||
-            data === null ||
-            data.v !== PROTOCOL_VERSION ||
-            typeof data.type !== 'string'
-        ) {
+        if (!isProtocolMessage(data)) {
             console.warn('[yt-dlp bridge] Dropped malformed inbound (missing v:' + PROTOCOL_VERSION + ' or type)', typeof data);
             return;
         }
@@ -89,7 +103,7 @@ export const bridge = {
     /**
      * Subscribe to inbound protocol messages (all types, v:1 only).
      * Shell chunks are excluded — use onShellChunk() for those.
-     * @param {(msg: { v: 1, type: string, [key: string]: unknown }) => void} handler
+     * @param {(msg: PanelOutboundMessage) => void} handler
      * @returns {() => void} Unsubscribe function
      */
     onMessage(handler) {
@@ -102,7 +116,7 @@ export const bridge = {
 
     /**
      * Subscribe to streaming shell chunks from pipeShellToWebPanel.
-     * @param {(chunk: { stream: string, data: string, bytesTotal: number }) => void} handler
+     * @param {(chunk: ShellChunk) => void} handler
      * @returns {() => void} Unsubscribe function
      */
     onShellChunk(handler) {

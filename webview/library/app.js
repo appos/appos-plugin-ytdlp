@@ -32,13 +32,15 @@ import { msg, validateInbound } from '../shared/messages.js';
 import { renderDegradedBanner } from '../shared/degraded-banner.js';
 import { debouncedInput, renderList, escapeHtml } from '../shared/ui-helpers.js';
 
+/** @typedef {import('../../src/types/plugin-state').LibraryEntry} LibraryEntry */
+
 // ── Constants ─────────────────────────────────────────────────────
 
 const SEARCH_DEBOUNCE_MS = 250;
 
 // ── DOM refs ──────────────────────────────────────────────────────
 
-const bannerSlot = document.getElementById('degraded-banner');
+const bannerSlot = /** @type {HTMLElement} */ (document.getElementById('degraded-banner'));
 const searchInput = /** @type {HTMLInputElement} */ (document.getElementById('search-input'));
 const sortSelect = /** @type {HTMLSelectElement} */ (document.getElementById('sort-select'));
 const viewBtns = /** @type {NodeListOf<HTMLButtonElement>} */ (
@@ -48,20 +50,23 @@ const favsCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('f
 const container = /** @type {HTMLElement} */ (document.getElementById('library-container'));
 const emptyState = /** @type {HTMLElement} */ (document.getElementById('empty-state'));
 const deleteDialog = /** @type {HTMLDialogElement} */ (document.getElementById('delete-confirm-dialog'));
-const deleteMsg = document.getElementById('delete-confirm-msg');
-const deleteCancelBtn = document.getElementById('delete-confirm-cancel');
-const deleteOkBtn = document.getElementById('delete-confirm-ok');
+const deleteMsg = /** @type {HTMLElement} */ (document.getElementById('delete-confirm-msg'));
+const deleteCancelBtn = /** @type {HTMLElement} */ (document.getElementById('delete-confirm-cancel'));
+const deleteOkBtn = /** @type {HTMLElement} */ (document.getElementById('delete-confirm-ok'));
 
 // ── State ─────────────────────────────────────────────────────────
 
-/** @type {Array<object>} */
+/** @type {LibraryEntry[]} */
 let items = [];
 let view = 'grid';
 let sort = 'newest';
 let search = '';
 let favsOnly = false;
 
-/** Pending delete-from-disk item ID */
+/**
+ * Pending delete-from-disk item ID
+ * @type {string | null}
+ */
 let pendingDeleteId = null;
 
 /**
@@ -79,7 +84,7 @@ let lastLibraryFingerprint = '';
  * characters inside metadata values (titles, URLs) cannot cause
  * false matches between different states.
  *
- * @param {Array<object>} arr
+ * @param {LibraryEntry[]} arr
  * @returns {string}
  */
 function libraryFingerprint(arr) {
@@ -107,7 +112,7 @@ function formatDuration(secs) {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = Math.floor(secs % 60);
-    const pad = (n) => String(n).padStart(2, '0');
+    const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
     return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
@@ -146,7 +151,7 @@ function formatDate(iso) {
 
 /**
  * Filter and sort library items based on current UI state.
- * @returns {Array<object>}
+ * @returns {LibraryEntry[]}
  */
 function getFilteredItems() {
     let result = items;
@@ -192,7 +197,7 @@ function getFilteredItems() {
  * Create a context menu (details/summary disclosure widget) for a library item.
  * Menu items reachable via Tab; closes on blur/outside-click.
  *
- * @param {object} item
+ * @param {LibraryEntry} item
  * @returns {HTMLDetailsElement}
  */
 function createContextMenu(item) {
@@ -233,7 +238,7 @@ function createContextMenu(item) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'yt-ctx-menu__btn';
-        btn.textContent = action.label;
+        btn.textContent = action.label ?? '';
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -244,7 +249,7 @@ function createContextMenu(item) {
             } else if (action.type === 'delete-item') {
                 bridge.send(msg('delete-item', { id: item.id }));
             } else {
-                bridge.send(msg(action.type, { id: item.id }));
+                bridge.send(msg(action.type ?? '', { id: item.id }));
             }
         });
 
@@ -255,8 +260,8 @@ function createContextMenu(item) {
     details.appendChild(list);
 
     // Close on outside click, focusout, and Escape
-    const closeOnOutside = (e) => {
-        if (!details.contains(e.target)) {
+    const closeOnOutside = (/** @type {MouseEvent} */ e) => {
+        if (!details.contains(/** @type {Node | null} */ (e.target))) {
             details.open = false;
         }
     };
@@ -274,7 +279,7 @@ function createContextMenu(item) {
         });
     };
 
-    const closeOnEscape = (e) => {
+    const closeOnEscape = (/** @type {KeyboardEvent} */ e) => {
         if (e.key === 'Escape') {
             details.open = false;
             // Return focus to the summary trigger
@@ -310,7 +315,7 @@ function createContextMenu(item) {
 
 /**
  * Show the native dialog to confirm "delete from disk".
- * @param {object} item
+ * @param {LibraryEntry} item
  */
 function showDeleteConfirm(item) {
     pendingDeleteId = item.id;
@@ -340,7 +345,7 @@ deleteDialog.addEventListener('cancel', () => {
 
 /**
  * Create a grid card element for a library item.
- * @param {object} item
+ * @param {LibraryEntry} item
  * @returns {HTMLElement}
  */
 function createGridCard(item) {
@@ -420,7 +425,8 @@ function createGridCard(item) {
     // Card click -> play
     card.addEventListener('click', (e) => {
         // Don't trigger play if user clicked a button or the context menu
-        if (e.target.closest('button') || e.target.closest('.yt-ctx-menu')) return;
+        const target = /** @type {HTMLElement} */ (e.target);
+        if (target.closest('button') || target.closest('.yt-ctx-menu')) return;
         bridge.send(msg('play-file', { id: item.id }));
     });
 
@@ -440,7 +446,7 @@ function createGridCard(item) {
 
 /**
  * Create a list row element for a library item.
- * @param {object} item
+ * @param {LibraryEntry} item
  * @returns {HTMLElement}
  */
 function createListRow(item) {
@@ -510,7 +516,8 @@ function createListRow(item) {
 
     // Row click -> play (same guard as grid)
     row.addEventListener('click', (e) => {
-        if (e.target.closest('button') || e.target.closest('.yt-ctx-menu')) return;
+        const target = /** @type {HTMLElement} */ (e.target);
+        if (target.closest('button') || target.closest('.yt-ctx-menu')) return;
         bridge.send(msg('play-file', { id: item.id }));
     });
 
@@ -527,7 +534,10 @@ function createListRow(item) {
 
 // ── Render ────────────────────────────────────────────────────────
 
-/** Track scroll listener for virtualization teardown. */
+/**
+ * Track scroll listener for virtualization teardown.
+ * @type {(() => void) | null}
+ */
 let scrollCleanup = null;
 
 /** Threshold for windowed list virtualization (item count). */
@@ -548,7 +558,10 @@ const LIST_ROW_HEIGHT = 49;
  * even when the owning DOM node is about to be removed by rerender.
  */
 function closeOpenMenus() {
-    for (const menu of container.querySelectorAll('details.yt-ctx-menu[open]')) {
+    const openMenus = /** @type {NodeListOf<HTMLDetailsElement>} */ (
+        container.querySelectorAll('details.yt-ctx-menu[open]')
+    );
+    for (const menu of openMenus) {
         menu.open = false;
     }
 }
@@ -604,7 +617,7 @@ function renderWithReset() {
  * cost of recreating a card is low (no network requests -- thumbnails
  * reload from cache on re-render).
  *
- * @param {Array<object>} filtered
+ * @param {LibraryEntry[]} filtered
  */
 function renderGrid(filtered) {
     container.className = 'yt-library-container yt-library-container--grid';
@@ -622,7 +635,7 @@ function renderGrid(filtered) {
  * Like renderGrid, always creates fresh rows to ensure full
  * reconciliation of all displayed fields.
  *
- * @param {Array<object>} filtered
+ * @param {LibraryEntry[]} filtered
  */
 function renderListMode(filtered) {
     container.className = 'yt-library-container yt-library-container--list';
@@ -649,7 +662,7 @@ function renderListMode(filtered) {
  * referenced by rules in the external stylesheet (CSP-compliant -- no
  * dynamic <style> injection or inline style= attributes).
  *
- * @param {Array<object>} filtered
+ * @param {LibraryEntry[]} filtered
  */
 function renderVirtualList(filtered) {
     /**
@@ -729,7 +742,8 @@ function renderVirtualList(filtered) {
 for (const btn of viewBtns) {
     btn.addEventListener('click', () => {
         const newView = btn.getAttribute('data-view');
-        if (newView === view) return;
+        // null guard is type-level only: viewBtns are selected BY [data-view]
+        if (newView === null || newView === view) return;
         view = newView;
 
         for (const b of viewBtns) {

@@ -14,12 +14,10 @@
  */
 
 /**
- * @typedef {object} DependencyStatus
- * @property {string} id
- * @property {string} name
- * @property {boolean} satisfied
- * @property {string} [version]
- * @property {string} [hint]
+ * Canonical dependency-status shape — what the plugin actually broadcasts
+ * (`ctx.lifecycle.getDependencyStatus()` rows, see src/main.ts). The install
+ * hint field on the wire is `installHint`, NOT `hint`.
+ * @typedef {import('../../src/types/plugin-state').DependencyStatus} DependencyStatus
  */
 
 /**
@@ -42,7 +40,7 @@ export function renderDegradedBanner(container, statuses, { onRecheck }) {
     const missing = statuses.filter((s) => !s.satisfied);
 
     // Find or create the banner element
-    let banner = container.querySelector('.yt-degraded-banner');
+    let banner = /** @type {HTMLElement | null} */ (container.querySelector('.yt-degraded-banner'));
 
     if (missing.length === 0) {
         if (banner) banner.hidden = true;
@@ -71,7 +69,10 @@ export function renderDegradedBanner(container, statuses, { onRecheck }) {
     strong.textContent = 'Missing: ' + depNames;
     contentDiv.appendChild(strong);
 
-    const hints = missing.filter((d) => d.hint).map((d) => d.hint);
+    // Wire field is `installHint` (canonical DependencyStatus) — the previous
+    // `d.hint` read did not exist on the broadcast payload, so hints never
+    // rendered. Caught by strict checkJs (fn-180).
+    const hints = missing.map((d) => d.installHint).filter((h) => h !== undefined);
     if (hints.length > 0) {
         const p = document.createElement('p');
         p.className = 'yt-degraded-banner__hints';

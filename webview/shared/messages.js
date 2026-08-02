@@ -51,13 +51,14 @@ export function validateInbound(raw) {
         payload = raw.data;
     }
 
+    const m = /** @type {{ v?: unknown, type?: unknown } | null} */ (payload);
     if (
-        typeof payload === 'object' &&
-        payload !== null &&
-        payload.v === 1 &&
-        typeof payload.type === 'string'
+        typeof m === 'object' &&
+        m !== null &&
+        m.v === 1 &&
+        typeof m.type === 'string'
     ) {
-        return /** @type {PanelOutboundMessage} */ (payload);
+        return /** @type {PanelOutboundMessage} */ (m);
     }
 
     // Log only top-level keys to avoid leaking sensitive payload fields
