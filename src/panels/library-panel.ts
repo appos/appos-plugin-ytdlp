@@ -73,7 +73,11 @@ export async function registerLibraryPanel(
             // right pane's file browser (NOT macOS "Reveal in Finder").
             let parentUrl: string | null = null;
 
-            if (entry.fileUrl) {
+            // URL is typed `| undefined` (absent in bare JSC — see
+            // src/types/jsc-url.d.ts): skipping this block falls through to
+            // the path-based approach, matching the former
+            // ReferenceError-into-catch path when the constructor is missing.
+            if (entry.fileUrl && typeof URL === 'function') {
                 try {
                     const fileUrl = new URL(entry.fileUrl);
                     if (fileUrl.protocol === 'file:') {
@@ -215,14 +219,17 @@ export async function registerLibraryPanel(
     // because the SDK utility requires setTimeout unconditionally — JSC
     // runtimes may not provide timers, so we need the no-timer fallback.
     let throttledBroadcast: (() => void) | null = null;
-    let throttleTimer: ReturnType<typeof setTimeout> | undefined;
+    // Plain `number`: setTimeout is typed `| undefined` in the JSC env
+    // (src/jsc-globals.d.ts), so ReturnType<typeof setTimeout> no longer
+    // satisfies the (...args) => any constraint.
+    let throttleTimer: number | undefined;
 
     if (typeof setTimeout === 'function') {
         let lastBroadcast = 0;
         throttledBroadcast = () => {
             const now = Date.now();
             const remaining = 100 - (now - lastBroadcast);
-            clearTimeout(throttleTimer);
+            clearTimeout?.(throttleTimer);
             if (remaining <= 0) {
                 lastBroadcast = now;
                 ctx.ui.postToWebPanel(PANELS.LIBRARY, {

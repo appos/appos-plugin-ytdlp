@@ -183,6 +183,12 @@ export function isValidMediaUrl(url: string): UrlValidOk | UrlValidFail {
     // Scheme check — only http and https are allowed.
     // Use the URL constructor for robust parsing. If it throws, the URL
     // is malformed and should be rejected (not accepted via a fallback).
+    // The URL global is typed `| undefined` (absent in bare JSC — see
+    // src/types/jsc-url.d.ts): fail closed exactly as the former
+    // ReferenceError-into-catch path did when the constructor is missing.
+    if (typeof URL !== 'function') {
+        return { ok: false, reason: 'Invalid URL' };
+    }
     try {
         const parsed = new URL(url);
         const scheme = parsed.protocol.toLowerCase();
