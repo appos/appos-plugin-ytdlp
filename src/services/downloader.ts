@@ -221,11 +221,14 @@ function safeThrottle<A extends unknown[]>(
         return { call: fn, cancel: () => { /* no-op */ } };
     }
     let last = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Plain `number`: setTimeout is typed `| undefined` in the JSC env
+    // (src/jsc-globals.d.ts), so ReturnType<typeof setTimeout> no longer
+    // satisfies the (...args) => any constraint.
+    let timer: number | undefined;
     const call = (...args: A): void => {
         const now = Date.now();
         const remaining = ms - (now - last);
-        clearTimeout(timer);
+        clearTimeout?.(timer);
         if (remaining <= 0) {
             last = now;
             fn(...args);
@@ -238,7 +241,7 @@ function safeThrottle<A extends unknown[]>(
         }
     };
     const cancel = (): void => {
-        clearTimeout(timer);
+        clearTimeout?.(timer);
         timer = undefined;
     };
     return { call, cancel };

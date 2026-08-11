@@ -95,6 +95,10 @@ function hostMatches(hostname: string, suffix: string): boolean {
  * as ambiguous so yt-dlp resolves them with `--no-playlist`.
  */
 function detectPlaylistUrl(url: string): string | null {
+    // URL is typed `| undefined` (absent in bare JSC — see
+    // src/types/jsc-url.d.ts): treat the URL as undetectable, matching the
+    // former ReferenceError-into-catch path when the constructor is missing.
+    if (typeof URL !== 'function') return null;
     try {
         const parsed = new URL(url);
         const host = parsed.hostname.toLowerCase();

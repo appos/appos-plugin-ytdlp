@@ -121,6 +121,18 @@ This plugin is the canonical reference for the AppOS Plugin API. Every pattern l
     npm run test:units     # Unit tests (error parser, security, state, paths, services)
     npm run test:smoke     # Smoke test (loads bundle, calls activate, exercises fixtures)
 
+Typecheck covers two compilation worlds. The main `tsconfig.json` checks
+`src/**/*.ts` against the JavaScriptCore plugin runtime: `lib` is `["ES2022"]`
+with **no `DOM`** (there is no `document`/`window`/browser `fetch` in JSC — use
+`ctx.network.fetch`), and `src/jsc-globals.d.ts` declares the globals the
+runtime genuinely provides (native `console`; timer quartet typed `| undefined`
+so unguarded `setTimeout(...)` fails TS2722 while a `typeof setTimeout ===
+'function'`-narrowed call compiles). `tsconfig.webview.json` checks `webview/`
+against the DOM and sets `skipLibCheck: false` on purpose: the only declaration
+file in that program is the project-owned `webview/twopanez.d.ts`, so lib-check
+must stay on or corruption inside that file is silently suppressed — which is
+exactly what the config exists to catch.
+
 Deploy to AppOS for testing:
 
     rsync -av --exclude node_modules --exclude .git . \
