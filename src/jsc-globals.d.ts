@@ -3,7 +3,10 @@
 // timer globals are typed `| undefined` — an unguarded setTimeout(...) is a
 // type error (TS2722) while a `typeof setTimeout === 'function'`-narrowed
 // call compiles. Do not add DOM globals here: document/window/browser fetch
-// do not exist in the plugin runtime (use ctx.network.fetch).
+// do not exist in the plugin runtime (use ctx.network.fetch). The
+// host-injected `URL` global is declared by the SDK's opt-in subpath
+// `@appos.space/plugin-types/globals` (wired via tsconfig `types`), NOT
+// here — this file covers only the globals the SDK does not declare.
 declare const console: {
     log(...args: unknown[]): void;
     info(...args: unknown[]): void;

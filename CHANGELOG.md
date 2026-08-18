@@ -5,6 +5,38 @@ All notable changes to the yt-dlp Media Downloader plugin will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Migration from SDK v2 (`^2.4.0`) to v3 (`^3.0.2`) — the reference plugin
+now builds against the same `@appos.space` type surface the AppOS 1.0.0
+host actually ships (43 context namespaces / 135 permission scopes).
+Functionally identical for users; fixes two latent v1-URL-runtime hazards
+that only manifest on hosts injecting the Foundation-bridged `URL` global.
+
+### Changed
+- `@appos.space/plugin-types`, `@appos.space/plugin-utils`, and
+  `@appos.space/view-builders` bumped `^2.4.0` → `^3.0.2`
+- Deleted the local typings shim `src/types/appos-core-apis.d.ts` —
+  SDK v3 declares `ActionsAPI` / `NotificationsAPI` (and the other
+  core-plugin namespaces) on `PluginContext` natively; this was the
+  shim's documented delete-on-upgrade tripwire
+- Deleted the local `src/types/jsc-url.d.ts` shim — the host-injected
+  `URL` global is now typed by the SDK's opt-in subpath
+  `@appos.space/plugin-types/globals`, wired via `tsconfig.json`
+  `compilerOptions.types`
+- `DownloadUrlInput` is now a `type` alias (SDK v3's `exec.input:
+  AnyJSONValue` is not assertion-comparable to an `interface` target)
+- Playlist detection parses `url.search` manually instead of
+  `url.searchParams` — the v1 host runtime has no `URLSearchParams`
+  (the getter throws), which would have silently disabled playlist
+  short-circuiting on injecting hosts
+- "Show in Files pane" derives the parent directory from the
+  percent-encoded `pathname` without mutating the `URL` object — the
+  host-injected `URL`'s accessors are readonly
+- Manifest no longer declares the legacy `smartFolders` / `webview`
+  permission scopes (historical SDK-only names with no host-side entry;
+  the operative gates `filesystem.read` / `ui.webPanel` remain declared)
+
 ## [1.1.0] - 2026-07-15
 
 Migration to the AppOS core-plugin API surface (Public Action Fabric,

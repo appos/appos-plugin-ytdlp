@@ -10,7 +10,8 @@
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "lib": ["ES2022"]
+        "lib": ["ES2022"],
+        "types": ["@appos.space/plugin-types/globals"]
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules", "dist", "src/**/*.test.ts"]

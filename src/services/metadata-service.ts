@@ -83,6 +83,34 @@ function hostMatches(hostname: string, suffix: string): boolean {
 }
 
 /**
+ * Test whether a query string (`""` or `"?"`-prefixed, as returned by
+ * `URL.search`) contains the given parameter name.
+ *
+ * The host-injected `URL` global has NO `URLSearchParams` in v1 — the
+ * `searchParams` getter THROWS (see `@appos.space/plugin-types/globals`),
+ * so the query is parsed manually. Keys are `+`/percent-decoded before
+ * comparison to match `URLSearchParams` semantics; a malformed escape
+ * falls back to the raw key.
+ */
+function queryHas(search: string, name: string): boolean {
+    if (!search) return false;
+    const query = search.startsWith('?') ? search.slice(1) : search;
+    for (const pair of query.split('&')) {
+        if (!pair) continue;
+        const eq = pair.indexOf('=');
+        const rawKey = eq === -1 ? pair : pair.slice(0, eq);
+        let key = rawKey;
+        try {
+            key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
+        } catch {
+            // Malformed percent-escape — compare the raw key.
+        }
+        if (key === name) return true;
+    }
+    return false;
+}
+
+/**
  * Test whether a URL is unambiguously a playlist.
  *
  * Returns the playlist URL if detected, or `null` to fall through to yt-dlp.
@@ -95,9 +123,11 @@ function hostMatches(hostname: string, suffix: string): boolean {
  * as ambiguous so yt-dlp resolves them with `--no-playlist`.
  */
 function detectPlaylistUrl(url: string): string | null {
-    // URL is typed `| undefined` (absent in bare JSC — see
-    // src/types/jsc-url.d.ts): treat the URL as undetectable, matching the
-    // former ReferenceError-into-catch path when the constructor is missing.
+    // URL is typed `URLConstructor | undefined` by the SDK globals subpath
+    // (`@appos.space/plugin-types/globals`): absent on pre-injection hosts,
+    // menu-bar raw contexts, and under the host kill switch. Treat the URL
+    // as undetectable in that case, matching the former
+    // ReferenceError-into-catch path when the constructor is missing.
     if (typeof URL !== 'function') return null;
     try {
         const parsed = new URL(url);
@@ -105,12 +135,14 @@ function detectPlaylistUrl(url: string): string | null {
 
         // ── YouTube ───────────────────────────────────────────────
         if (hostMatches(host, 'youtube.com') || hostMatches(host, 'youtu.be')) {
-            const hasList = parsed.searchParams.has('list');
+            // NOTE: `parsed.searchParams` is unavailable in the v1 plugin
+            // runtime (the getter throws) — parse `parsed.search` manually.
+            const hasList = queryHas(parsed.search, 'list');
             if (!hasList) return null;
 
             // Only short-circuit when the URL is the canonical playlist page
             // (youtube.com/playlist?list=...) — no video ID anywhere.
-            const hasV = parsed.searchParams.has('v');
+            const hasV = queryHas(parsed.search, 'v');
             const isPlaylistPath = parsed.pathname === '/playlist';
 
             if (!hasV && isPlaylistPath) return url;

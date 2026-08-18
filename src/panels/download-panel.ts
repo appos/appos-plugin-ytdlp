@@ -389,9 +389,10 @@ export async function registerDownloadPanel(
 
             let parentUrl: string | null = null;
 
-            // URL is typed `| undefined` (absent in bare JSC — see
-            // src/types/jsc-url.d.ts): skipping this block falls through to
-            // the path-based approach, matching the former
+            // URL is typed `URLConstructor | undefined` by the SDK globals
+            // subpath (absent on pre-injection hosts / menu-bar contexts /
+            // host kill switch): skipping this block falls through to the
+            // path-based approach, matching the former
             // ReferenceError-into-catch path when the constructor is missing.
             if (entry.finalFileUrl && typeof URL === 'function') {
                 // Derive parent from the canonical file URL (handles encoding).
@@ -399,10 +400,16 @@ export async function registerDownloadPanel(
                 try {
                     const fileUrl = new URL(entry.finalFileUrl);
                     if (fileUrl.protocol === 'file:') {
+                        // The host-injected URL's accessors are READONLY
+                        // (assignment is a no-op / TypeError), so build the
+                        // parent URL from the percent-encoded pathname
+                        // instead of mutating `pathname` and re-reading
+                        // `href`. Root-level files (empty parent) fall
+                        // through to the path-based approach.
                         const pathParts = fileUrl.pathname.split('/');
                         pathParts.pop(); // remove filename
-                        fileUrl.pathname = pathParts.join('/');
-                        parentUrl = fileUrl.href;
+                        const parentPath = pathParts.join('/');
+                        if (parentPath) parentUrl = 'file://' + parentPath;
                     }
                 } catch {
                     // Malformed URL — fall through to path-based approach
