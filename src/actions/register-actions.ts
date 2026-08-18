@@ -22,9 +22,11 @@
  *
  * ## Host compatibility
  *
- * `ctx.actions` is absent on older hosts (see
- * `src/types/appos-core-apis.d.ts`); registration is skipped silently
- * and the legacy command surface keeps working unchanged.
+ * `ctx.actions` is declared non-optional by `@appos.space/plugin-types`
+ * v3 (host 1.0.0 launch baseline), but the runtime guard below is kept
+ * so the plugin degrades gracefully on a pre-1.0 host: registration is
+ * skipped silently and the legacy command surface keeps working
+ * unchanged.
  *
  * @module actions/register-actions
  */
@@ -39,12 +41,21 @@ import { enqueueAndProcess } from '../services/downloader';
 const FORMAT_VALUES = ['best', 'mp4', 'webm', 'mp3', 'm4a', 'bestaudio'] as const;
 const QUALITY_VALUES = ['best', '2160p', '1440p', '1080p', '720p', '480p', '360p'] as const;
 
-/** Validated input shape for the `downloadUrl` action. */
-interface DownloadUrlInput {
+/**
+ * Validated input shape for the `downloadUrl` action.
+ *
+ * MUST stay a `type` alias (not an `interface`): the handler narrows
+ * `exec.input` — typed `AnyJSONValue` by SDK v3 — with
+ * `as DownloadUrlInput`, and interfaces get no implicit index
+ * signature, so an interface target is not comparable to
+ * `AnyJSONValue`'s object arm (TS2352). Pinned by the SDK's own
+ * `actions.typetest.ts`.
+ */
+type DownloadUrlInput = {
     url: string;
     format?: string;
     quality?: string;
-}
+};
 
 /**
  * Register all public actions. Returns disposers that unregister the
