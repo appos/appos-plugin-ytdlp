@@ -26,9 +26,7 @@
         "feedback",
         "feedback.confirm",
         "workspaces",
-        "menubar",
-        "smartFolders",
-        "webview"
+        "menubar"
     ],
     "shellCommands": ["yt-dlp", "ffmpeg"],
     "extensions": [
