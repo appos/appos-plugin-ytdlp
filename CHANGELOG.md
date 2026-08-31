@@ -5,13 +5,26 @@ All notable changes to the yt-dlp Media Downloader plugin will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-08-31
 
-Migration from SDK v2 (`^2.4.0`) to v3 (`^3.0.2`) — the reference plugin
+Ships the SDK v2 (`^2.4.0`) → v3 (`^3.0.2`) migration — the reference plugin
 now builds against the same `@appos.space` type surface the AppOS 1.0.0
 host actually ships (43 context namespaces / 135 permission scopes).
 Functionally identical for users; fixes two latent v1-URL-runtime hazards
 that only manifest on hosts injecting the Foundation-bridged `URL` global.
+Also declares the top-level `capabilities` manifest block so catalog-published
+installs no longer trip the host's migration-window "capabilities field is
+missing" load-time warning.
+
+### Added
+- Top-level `capabilities` block in the runtime `plugin.json`
+  (`{ "provides": [], "consumes": [], "publishes": [], "subscribes": [] }`),
+  matching the shape already carried by the catalog `release-staging/manifest.json`
+  and the SDK's `PluginManifest.capabilities` (`Record<string, AnyJSONValue>`).
+  yt-dlp neither provides nor consumes capability contracts, so all four
+  arrays are empty; declaring the field silences the host's
+  `capabilities field is missing` warning emitted for catalog-published
+  (`source == .store`) plugins during the migration window
 
 ### Changed
 - `@appos.space/plugin-types`, `@appos.space/plugin-utils`, and

@@ -1,7 +1,7 @@
 {
     "id": "space.appos.ytdlp",
     "name": "yt-dlp Media Downloader",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "runtime": "javascript",
     "entrypoint": "dist/main.js",
     "minHostVersion": "1.0.0",
@@ -28,6 +28,12 @@
         "workspaces",
         "menubar"
     ],
+    "capabilities": {
+        "provides": [],
+        "consumes": [],
+        "publishes": [],
+        "subscribes": []
+    },
     "shellCommands": ["yt-dlp", "ffmpeg"],
     "extensions": [
         {
